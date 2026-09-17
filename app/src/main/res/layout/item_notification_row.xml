@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="12dp">
+
+    <!-- icon container -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/cvNotifIcon"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        app:cardBackgroundColor="#1E1E1E"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="0dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:id="@+id/ivNotifIcon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center"
+            app:tint="#0097B2"
+            tools:src="@android:drawable/sym_action_email" />
+    </androidx.cardview.widget.CardView>
+
+    <!-- title of notification -->
+    <TextView
+        android:id="@+id/tvNotifTitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="12dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toStartOf="@id/tvNotifTime"
+        app:layout_constraintStart_toEndOf="@id/cvNotifIcon"
+        app:layout_constraintTop_toTopOf="@id/cvNotifIcon"
+        tools:text="Collab Invite" />
+
+    <TextView
+        android:id="@+id/tvNotifTime"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="#0097B2"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/tvNotifTitle"
+        app:layout_constraintBottom_toBottomOf="@id/tvNotifTitle"
+        tools:text="Just now" />
+
+    <!-- message -->
+    <TextView
+        android:id="@+id/tvNotifMessage"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="4dp"
+        android:ellipsize="end"
+        android:maxLines="2"
+        android:textColor="#B3B3B3"
+        android:textSize="14sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/cvNotifIcon"
+        app:layout_constraintTop_toBottomOf="@id/tvNotifTitle"
+        tools:text="Anique and Kyle shared a playlist with you." />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- this is the colour of the selected/active state (buttons etc.) -->
+    <item android:color="#0097B2" android:state_checked="true" />
+
+    <!-- the default colour will be a muted grey (unselected) -->
+    <item android:color="#B3B3B3" />
+</selector>
