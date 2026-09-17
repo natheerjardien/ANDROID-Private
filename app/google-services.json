@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "266169835058",
+    "project_id": "tuniq-19449",
+    "storage_bucket": "tuniq-19449.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:266169835058:android:02b34159c7ee896c6ee62b",
+        "android_client_info": {
+          "package_name": "com.example.tuniq"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "266169835058-crr7tgeros0vmqusoaavkv5aui901c8j.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.tuniq",
+            "certificate_hash": "dadfe952c388dca20126811a3aa4d428c3cec6ea"
+          }
+        },
+        {
+          "client_id": "266169835058-mfiki21aivul0prsh9h94b6t61oqbcd9.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDlveuPPUU2-h7pA8p_fXdzXLNpqbmI0a8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "266169835058-mfiki21aivul0prsh9h94b6t61oqbcd9.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
