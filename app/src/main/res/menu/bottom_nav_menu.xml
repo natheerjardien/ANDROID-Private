@@ -4,7 +4,7 @@
     <!-- this approach is better that duplicating code inside every screen -->
     <item
         android:id="@+id/nav_home"
-        android:icon="@android:drawable/ic_menu_today"
+        android:icon="@android:drawable/ic_menu_compass"
         android:title="Home" />
     <item
         android:id="@+id/nav_search"
@@ -12,6 +12,6 @@
         android:title="Search" />
     <item
         android:id="@+id/nav_library"
-        android:icon="@android:drawable/ic_menu_gallery"
+        android:icon="@android:drawable/ic_input_get"
         android:title="Library" />
 </menu>

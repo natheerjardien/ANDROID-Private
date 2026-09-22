@@ -15,8 +15,7 @@ import androidx.core.view.WindowInsetsCompat
 class EqualizerActivity : AppCompatActivity() {
 
     private var equalizer: Equalizer? = null // (AndroidDevelopers, 2026)
-
-    // -- Pass audioSessionId to this Activity via Intent extras --
+    
     private var audioSessionId = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -29,6 +28,9 @@ class EqualizerActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
+
+        // Retrieve the audioSessionId passed via Intent
+        audioSessionId = intent.getIntExtra("AUDIO_SESSION_ID", 0)
 
         // Initialize Equalizer and check if the device has Equalizer support
         try {

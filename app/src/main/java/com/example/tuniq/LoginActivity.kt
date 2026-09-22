@@ -12,6 +12,7 @@ package com.example.tuniq
     import androidx.credentials.CustomCredential
     import androidx.credentials.GetCredentialRequest
     import androidx.lifecycle.lifecycleScope
+    import com.example.tuniq.utils.TokenManager
     import com.google.android.libraries.identity.googleid.GetGoogleIdOption
     import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
     import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
@@ -71,13 +72,21 @@ package com.example.tuniq
 
                             Log.d("LoginActivity", "Email login successful")
 
+                            // Save email and password to SharedPreferences
+                            val sharedPreferences = getSharedPreferences("UserPrefs", MODE_PRIVATE)
+                            sharedPreferences.edit().apply {
+                                putString("USER_EMAIL", emailText)
+                                putString("USER_PASSWORD", passwordText)
+                                apply()
+                            }
+
                             Toast.makeText(
                                 this,
                                 "Login successful",
                                 Toast.LENGTH_SHORT
                             ).show()
 
-                            openMainActivity()
+                            fetchAndSaveTokenThenNavigate()
 
                         } else {
 
@@ -211,13 +220,24 @@ package com.example.tuniq
                             "Google Firebase authentication successful"
                         )
 
+                        // Save user email via Google auth
+                        val currentUser = auth.currentUser
+                        if (currentUser?.email != null) {
+                            val sharedPreferences = getSharedPreferences("UserPrefs", MODE_PRIVATE)
+                            sharedPreferences.edit().apply {
+                                putString("USER_EMAIL", currentUser.email)
+                                putString("USER_PASSWORD", "")
+                                apply()
+                            }
+                        }
+
                         Toast.makeText(
                             this,
                             "Google login successful",
                             Toast.LENGTH_SHORT
                         ).show()
 
-                        openMainActivity()
+                        fetchAndSaveTokenThenNavigate()
 
                     } else {
 
@@ -235,6 +255,27 @@ package com.example.tuniq
                         ).show()
                     }
                 }
+        }
+
+        /**
+         * Extracts the secure JWT from the active Firebase session and saves it locally (Google, 2026).
+         */
+        private fun fetchAndSaveTokenThenNavigate() {
+            val user = auth.currentUser
+            user?.getIdToken(true)?.addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    val token = task.result?.token
+                    if (token != null) {
+                        val tokenManager = TokenManager(this)
+                        tokenManager.saveToken(token)
+                        Log.d("LoginActivity", "JWT successfully retrieved and encrypted.")
+                    }
+                } else {
+                    Log.e("LoginActivity", "Failed to retrieve Firebase ID token.", task.exception)
+                }
+                // Navigate to main regardless of token success, though API calls will fail without it
+                openMainActivity()
+            } ?: openMainActivity()
         }
 
         private fun openMainActivity() {
@@ -258,7 +299,12 @@ package com.example.tuniq
                     "Existing Firebase user detected"
                 )
 
-                openMainActivity()
+                fetchAndSaveTokenThenNavigate()
             }
         }
     }
+
+/*
+ * Reference List:
+ * Google, 2026. Authenticate with Firebase in Android. [Online] Available at: <https://firebase.google.com/docs/auth/admin/verify-id-tokens> [Accessed 21 September 2026].
+ */

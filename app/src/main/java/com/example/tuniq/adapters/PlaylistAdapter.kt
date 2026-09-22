@@ -1,58 +1,63 @@
 package com.example.tuniq.adapters
 
+import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
+import com.example.tuniq.PlaylistFragment
 import com.example.tuniq.R
-import com.example.tuniq.api.Playlist
+import com.example.tuniq.api.PlaylistModel
 
-class PlaylistAdapter(private var playlists: List<Playlist>) : RecyclerView.Adapter<PlaylistAdapter.PlaylistViewHolder>() {
+class PlaylistAdapter(private var playlists: List<PlaylistModel>) : RecyclerView.Adapter<PlaylistAdapter.PlaylistViewHolder>() {
 
-    // Defines the UI elements based on your existing item_music_card.xml
     class PlaylistViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val ivCoverArt: ImageView = view.findViewById(R.id.ivCoverArt)
-        val tvItemTitle: TextView = view.findViewById(R.id.tvItemTitle)
-        val tvItemSubtitle: TextView = view.findViewById(R.id.tvItemSubtitle)
+        val ivRowArt: ImageView = view.findViewById(R.id.ivRowArt)
+        val tvRowTitle: TextView = view.findViewById(R.id.tvRowTitle)
+        val tvRowSubtitle: TextView = view.findViewById(R.id.tvRowSubtitle)
     }
 
-    // Inflates your existing item_music_card.xml layout for each playlist
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PlaylistViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_music_card, parent, false)
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_song_row, parent, false)
         return PlaylistViewHolder(view)
     }
 
-    // Binds the Spotify data to the views
     override fun onBindViewHolder(holder: PlaylistViewHolder, position: Int) {
         val playlist = playlists[position]
 
-        // Set the primary text to the playlist name
-        holder.tvItemTitle.text = playlist.name
+        holder.tvRowTitle.text = playlist.title
 
-        // Set the secondary text
-        holder.tvItemSubtitle.text = "Spotify Playlist"
+        val songCount = playlist.songs?.size ?: 0
+        holder.tvRowSubtitle.text = "Playlist • $songCount songs"
 
-        // Checks if the playlist has an image array and loads the first image URL using Glide
-        if (!playlist.images.isNullOrEmpty()) {
-            val imageUrl = playlist.images[0].url
-            Glide.with(holder.itemView.context)
-                .load(imageUrl)
-                .into(holder.ivCoverArt)
-        } else {
-            // Clears the image if no cover art exists
-            holder.ivCoverArt.setImageDrawable(null)
+        // Uses a generic icon for playlists since they wont have cover art
+        holder.ivRowArt.setImageResource(android.R.drawable.ic_menu_agenda)
+
+        holder.itemView.setOnClickListener {
+            // Serializes the playlist object so we can pass it through a Bundle
+            val playlistJson = com.google.gson.Gson().toJson(playlist)
+
+            val fragment = PlaylistFragment().apply {
+                arguments = Bundle().apply {
+                    putString("PLAYLIST_JSON", playlistJson)
+                }
+            }
+
+            // Opens to the playlist fragment
+            val activity = it.context as? androidx.appcompat.app.AppCompatActivity
+            activity?.supportFragmentManager?.beginTransaction()
+                ?.replace(R.id.fragmentContainer, fragment)
+                ?.addToBackStack(null)
+                ?.commit()
         }
     }
 
-    override fun getItemCount(): Int {
-        return playlists.size
-    }
+    override fun getItemCount(): Int = playlists.size
 
-    // Helper function to update the list when the network call finishes
-    fun updateData(newPlaylists: List<Playlist>) {
+    fun updateData(newPlaylists: List<PlaylistModel>) {
         playlists = newPlaylists
         notifyDataSetChanged()
     }

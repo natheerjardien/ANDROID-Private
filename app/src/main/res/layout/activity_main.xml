@@ -41,6 +41,8 @@
         android:layout_marginBottom="24dp"
         android:background="@drawable/bg_floating_nav"
         app:elevation="0dp"
+        app:itemPaddingTop="8dp"
+        app:itemPaddingBottom="4dp"
         app:itemActiveIndicatorStyle="@null"
         app:itemIconTint="@color/white"
         app:itemTextColor="@color/white"

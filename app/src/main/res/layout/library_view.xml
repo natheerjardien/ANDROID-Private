@@ -46,6 +46,7 @@
             android:paddingBottom="8dp" >
 
             <TextView
+                android:id="@+id/tvTabPlaylists"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:background="@drawable/bg_rounded_input"
@@ -57,6 +58,7 @@
                 android:textStyle="bold" />
 
             <TextView
+                android:id="@+id/tvTabLikedSongs"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"

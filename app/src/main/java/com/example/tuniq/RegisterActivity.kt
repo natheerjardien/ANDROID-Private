@@ -8,12 +8,19 @@ import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.example.tuniq.api.RetrofitClient
+import com.example.tuniq.api.TuniqApiService
+import com.example.tuniq.api.UserModel
 import com.google.firebase.auth.FirebaseAuth
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 
 
     class RegisterActivity : AppCompatActivity() {
 
         private lateinit var auth: FirebaseAuth
+        private lateinit var azureApi: TuniqApiService
 
         override fun onCreate(savedInstanceState: Bundle?) {
             super.onCreate(savedInstanceState)
@@ -22,6 +29,9 @@ import com.google.firebase.auth.FirebaseAuth
             Log.d("RegisterActivity", "Register screen opened")
 
             auth = FirebaseAuth.getInstance()
+
+            // Centralized client instantiation ensures the AuthInterceptor injects the Bearer token (Square, 2026).
+            azureApi = RetrofitClient.getApiService(this)
 
             val name = findViewById<EditText>(R.id.etRegName)
             val email = findViewById<EditText>(R.id.etRegEmail)
@@ -62,23 +72,30 @@ import com.google.firebase.auth.FirebaseAuth
 
                 auth.createUserWithEmailAndPassword(emailText, passwordText)
                     .addOnCompleteListener(this) { task ->
-
                         registerButton.isEnabled = true
-
-                        if (task.isSuccessful) {
-
+                        if (task.isSuccessful)
+                        {
                             Log.d("RegisterActivity", "Registration successful")
+                            // Grabs the Firebase UID that was just generated
+                            val firebaseUid = auth.currentUser?.uid ?: ""
+                            val firebaseUser = auth.currentUser
+                            // Forces Firebase to fully generate the new JWT Bearer token
+                            firebaseUser?.getIdToken(true)?.addOnSuccessListener {
 
-                            Toast.makeText(
-                                this,
-                                "Account created successfully",
-                                Toast.LENGTH_SHORT
-                            ).show()
+                                // Reinitializes Retrofit now that the user is logged in so the AuthInterceptor can grab the fresh token
+                                azureApi = RetrofitClient.getApiService(this@RegisterActivity)
 
-                            finish()
+                                // Syncs to Azure
+                                syncUserToAzure(firebaseUid, nameText, emailText)
 
-                        } else {
-
+                            }?.addOnFailureListener {
+                                Toast.makeText(this@RegisterActivity, "Failed to fetch auth token", Toast.LENGTH_SHORT).show()
+                                registerButton.isEnabled = true
+                                registerButton.text = "Sign Up"
+                            }
+                        }
+                        else
+                        {
                             Log.e(
                                 "RegisterActivity",
                                 "Registration failed",
@@ -97,6 +114,35 @@ import com.google.firebase.auth.FirebaseAuth
             backToLogin.setOnClickListener {
                 finish()
             }
+        }
+
+        /**
+         * Runs the POST request to register the user inside the SQL database through the .NET API
+         */
+        private fun syncUserToAzure(uid: String, name: String, email: String) {
+            val newUser = UserModel(userId = uid, name = name, email = email)
+
+            azureApi.createUser(newUser).enqueue(object : Callback<UserModel> {
+                override fun onResponse(call: Call<UserModel>, response: Response<UserModel>) {
+                    if (response.isSuccessful || response.code() == 409)
+                    {
+                        Toast.makeText(this@RegisterActivity, "Account created & synced successfully", Toast.LENGTH_SHORT).show()
+                        finish()
+                    }
+                    else
+                    {
+                        Log.e("AzureAPI", "Failed to sync user: HTTP ${response.code()}")
+                        Toast.makeText(this@RegisterActivity, "Account created, but database sync failed.", Toast.LENGTH_LONG).show()
+                        finish()
+                    }
+                }
+
+                override fun onFailure(call: Call<UserModel>, t: Throwable) {
+                    Log.e("AzureAPI", "Network error during sync", t)
+                    Toast.makeText(this@RegisterActivity, "Network error during database sync.", Toast.LENGTH_SHORT).show()
+                    finish()
+                }
+            })
         }
 
         private fun isValidPassword(password: String): Boolean {

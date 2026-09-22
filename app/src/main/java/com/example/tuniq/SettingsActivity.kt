@@ -14,15 +14,13 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import com.example.tuniq.auth.SpotifyAuthManager
-import com.example.tuniq.auth.TokenManager
+import com.example.tuniq.media.AudioPlayerManager
 import com.google.firebase.auth.FirebaseAuth
 
 class SettingsActivity : AppCompatActivity() {
 
     // Define the user's shared preferences
     private lateinit var sharedPreferences: SharedPreferences
-    private lateinit var tokenManager: TokenManager
     private val SETTINGS_PREF = "TuniqSettings"
     private val KEY_OFFLINE_SYNC = "offline_sync_enabled"
 
@@ -39,14 +37,13 @@ class SettingsActivity : AppCompatActivity() {
 
         // Initialize the SharedPreferences
         sharedPreferences = getSharedPreferences(SETTINGS_PREF, Context.MODE_PRIVATE)
-        tokenManager = TokenManager(this)
 
         // Bind the buttons and the switch
         val btnExitSettings = findViewById<ImageButton>(R.id.btnExitSettings)
         val btnAccount = findViewById<TextView>(R.id.btnAccount)
-        val btnConnectSpotify = findViewById<TextView>(R.id.btnConnectSpotify)
         val switchOfflineSync = findViewById<Switch>(R.id.switchOfflineSync)
         val btnEqualizer = findViewById<TextView>(R.id.btnEqualizer)
+        val btnSleepTimer = findViewById<TextView>(R.id.btnSleepTimer)
         val btnLogout = findViewById<Button>(R.id.btnLogout)
 
         // Initialize the switch state from saved preferences
@@ -71,30 +68,26 @@ class SettingsActivity : AppCompatActivity() {
             startActivity(Intent(this,AccountActivity::class.java))
         }
 
-        // Triggers the Spotify OAuth Flow
-        btnConnectSpotify.setOnClickListener {
-            val existingToken = tokenManager.getSpotifyToken()
-
-            if (existingToken != null)
-            {
-                Toast.makeText(this, "Spotify is already connected!", Toast.LENGTH_SHORT).show()
-            }
-            else
-            {
-                val authUrl = SpotifyAuthManager.getAuthorizationUrl()
-                val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(authUrl))
-                startActivity(browserIntent)
-            }
-        }
-
         // Equalizer navigation
         btnEqualizer.setOnClickListener {
-            startActivity(Intent(this, EqualizerActivity::class.java))
+            val sessionId = AudioPlayerManager.getAudioSessionId()
+            val intent = Intent(this, EqualizerActivity::class.java).apply {
+                putExtra("AUDIO_SESSION_ID", sessionId)
+            }
+            startActivity(intent)
+        }
+
+        btnSleepTimer.setOnClickListener {
+            startActivity(Intent(this, SleepTimerActivity::class.java))
         }
 
         // Execute Firebase Logout and clear activity stack
         btnLogout.setOnClickListener {
             Toast.makeText(this, "Logging out...", Toast.LENGTH_SHORT).show()
+
+            // Clear the saved user credentials from UserPrefs when logging out
+            val userPrefs = getSharedPreferences("UserPrefs", MODE_PRIVATE)
+            userPrefs.edit().clear().apply()
 
             FirebaseAuth.getInstance().signOut()
 

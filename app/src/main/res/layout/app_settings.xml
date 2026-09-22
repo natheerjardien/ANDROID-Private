@@ -53,17 +53,6 @@
         android:textColor="#FFFFFF"
         android:textSize="16sp" />
 
-    <TextView
-        android:id="@+id/btnConnectSpotify"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="?attr/selectableItemBackground"
-        android:padding="16dp"
-        android:text="Connect Spotify"
-        android:textColor="#1DB954"
-        android:textSize="16sp"
-        android:textStyle="bold" />
-
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
@@ -95,6 +84,16 @@
         android:background="?attr/selectableItemBackground"
         android:padding="16dp"
         android:text="Audio Equalizer"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp" />
+
+    <TextView
+        android:id="@+id/btnSleepTimer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?attr/selectableItemBackground"
+        android:padding="16dp"
+        android:text="Sleep Timer"
         android:textColor="#FFFFFF"
         android:textSize="16sp" />
 

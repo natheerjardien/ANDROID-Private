@@ -29,12 +29,12 @@
         android:textSize="12sp"
         android:textStyle="bold"
         app:layout_constraintBottom_toBottomOf="@id/btnCollapse"
-        app:layout_constraintEnd_toStartOf="@id/btnSleepTimer"
+        app:layout_constraintEnd_toStartOf="@id/btnShare"
         app:layout_constraintStart_toEndOf="@id/btnCollapse"
         app:layout_constraintTop_toTopOf="@id/btnCollapse" />
 
     <ImageButton
-        android:id="@+id/btnSleepTimer"
+        android:id="@+id/btnShare"
         android:layout_width="48dp"
         android:layout_height="48dp"
         android:background="?attr/selectableItemBackgroundBorderless"
@@ -104,7 +104,7 @@
         app:layout_constraintBottom_toBottomOf="@id/tvNowPlayingArtist"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="@id/tvNowPlayingTitle"
-        app:tint="#0097B2" />
+        app:tint="#FFFFFF" />
 
     <!-- progress bar to show the duration of the song -->
 
@@ -154,11 +154,11 @@
         tools:layout_editor_absoluteX="24dp">
 
         <ImageButton
-            android:id="@+id/btnShuffle"
+            android:id="@+id/btnAddToPlaylist"
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@android:drawable/ic_menu_sort_by_size"
+            android:src="@android:drawable/ic_menu_add"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@id/btnPrevTrack"
             app:layout_constraintHorizontal_chainStyle="spread_inside"
@@ -174,7 +174,7 @@
             android:src="@android:drawable/ic_media_previous"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@id/cvPlayPause"
-            app:layout_constraintStart_toEndOf="@id/btnShuffle"
+            app:layout_constraintStart_toEndOf="@id/btnAddToPlaylist"
             app:layout_constraintTop_toTopOf="parent"
             app:tint="#FFFFFF" />
 
@@ -207,13 +207,13 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@android:drawable/ic_media_next"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/btnRepeat"
+            app:layout_constraintEnd_toStartOf="@id/btnSleepTimer"
             app:layout_constraintStart_toEndOf="@id/cvPlayPause"
             app:layout_constraintTop_toTopOf="parent"
             app:tint="#FFFFFF" />
 
         <ImageButton
-            android:id="@+id/btnRepeat"
+            android:id="@+id/btnSleepTimer"
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"

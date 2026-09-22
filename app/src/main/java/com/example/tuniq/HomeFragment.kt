@@ -1,7 +1,6 @@
 package com.example.tuniq
 
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -11,10 +10,15 @@ import android.widget.ImageButton
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.example.tuniq.adapters.CategoryAdapter
 import com.example.tuniq.adapters.PlaylistAdapter
-import com.example.tuniq.api.SpotifyApiService
-import com.example.tuniq.api.SpotifyPlaylistResponse
-import com.example.tuniq.auth.TokenManager
+import com.example.tuniq.adapters.TrackAdapter
+import com.example.tuniq.api.JamendoApiService
+import com.example.tuniq.api.JamendoResponse
+import com.example.tuniq.api.PlaylistModel
+import com.example.tuniq.api.RetrofitClient
+import com.example.tuniq.auth.JamendoAuthManager
+import com.google.firebase.auth.FirebaseAuth
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -22,9 +26,14 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 class HomeFragment : Fragment() {
-    private lateinit var rvPlaylists: RecyclerView
+    private lateinit var rvQuickPicks: RecyclerView
+    private lateinit var trackAdapter: TrackAdapter
+
+    private lateinit var rvHomePlaylists: RecyclerView
     private lateinit var playlistAdapter: PlaylistAdapter
-    private lateinit var tokenManager: TokenManager
+
+    private lateinit var rvCategories: RecyclerView
+    private lateinit var categoryAdapter: CategoryAdapter
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -47,73 +56,97 @@ class HomeFragment : Fragment() {
             startActivity(intent)
         }
 
-        // Initialize the RecyclerView for playlists (Android Developers, 2026).
-        rvPlaylists = view.findViewById(R.id.rvPlaylists)
+        // Initialize the RecyclerView for the Quick Picks section
+        rvQuickPicks = view.findViewById(R.id.rvQuickPicks)
+        rvQuickPicks.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
 
-        // Forces the list to scroll horizontally
-        rvPlaylists.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+        trackAdapter = TrackAdapter(emptyList())
+        rvQuickPicks.adapter = trackAdapter
 
-        // Initialize adapter with an empty list and attach it to the RecyclerView
+        rvHomePlaylists = view.findViewById(R.id.rvPlaylists)
+        rvHomePlaylists.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
         playlistAdapter = PlaylistAdapter(emptyList())
-        rvPlaylists.adapter = playlistAdapter
+        rvHomePlaylists.adapter = playlistAdapter
 
-        // Initialize TokenManager to grab the saved Spotify token
-        tokenManager = TokenManager(requireContext())
+        rvCategories = view.findViewById(R.id.rvCategories)
+        rvCategories.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
 
-        // Fetch playlists immediately upon opening the dashboard
+        val genreList = listOf("Hip-hop", "Jazz", "Electronic", "Classical", "R&B")
+
+        categoryAdapter = CategoryAdapter(genreList) { selectedGenre ->
+            val searchFragment = SearchFragment().apply {
+                arguments = Bundle().apply {
+                    putString("PREFILLED_SEARCH_QUERY", selectedGenre)
+                }
+            }
+
+            parentFragmentManager.beginTransaction()
+                .replace(R.id.fragmentContainer, searchFragment) // Make sure this matches your container ID
+                .addToBackStack(null)
+                .commit()
+        }
+        rvCategories.adapter = categoryAdapter
+
+        fetchTrendingTracks()
+
         fetchUserPlaylists()
 
         return view
     }
 
     /**
-     * Executes an asynchronous network request to fetch the user's Spotify playlists (Square, n.d.).
+     * Executes an asynchronous network request to fetch public tracks from Jamendo
      */
-    private fun fetchUserPlaylists() {
-        val token = tokenManager.getSpotifyToken()
-
-        // If the user hasnt logged in yet, we abort the network call
-        if (token == null)
-        {
-            Log.d("SpotifyAPI", "No token found. User needs to connect Spotify.")
-            return
-        }
-
+    private fun fetchTrendingTracks() {
         val retrofit = Retrofit.Builder()
-            .baseUrl("https://api.spotify.com/")
+            .baseUrl(JamendoAuthManager.BASE_URL)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
 
-        val service = retrofit.create(SpotifyApiService::class.java)
-        val call = service.getUserPlaylists("Bearer $token")
+        val service = retrofit.create(JamendoApiService::class.java)
 
-        call.enqueue(object : Callback<SpotifyPlaylistResponse> {
-            override fun onResponse(call: Call<SpotifyPlaylistResponse>, response: Response<SpotifyPlaylistResponse>) {
+        // Fetching 20 public tracks using our registered Client ID
+        val call = service.getTracks(clientId = JamendoAuthManager.CLIENT_ID)
+
+        call.enqueue(object : Callback<JamendoResponse> {
+            override fun onResponse(call: Call<JamendoResponse>, response: Response<JamendoResponse>) {
                 if (response.isSuccessful)
                 {
-                    val playlists = response.body()?.items
+                    val tracks = response.body()?.results
 
-                    if (playlists != null)
+                    if (tracks != null)
                     {
-                        // Pushes the fetched data into the RecyclerView adapter so it appears on screen
-                        playlistAdapter.updateData(playlists)
-                        Log.d("SpotifyAPI", "Successfully loaded ${playlists.size} playlists.")
+                        trackAdapter.updateData(tracks)
+                        Log.d("JamendoAPI", "Successfully loaded ${tracks.size} tracks.")
                     }
-                }
-                else if (response.code() == 401)
-                {
-                    // 401 Unauthorized means the token expired. Trigger the 1hr refresh function in MainActivity.
-                    Log.e("SpotifyAPI", "Token expired! Attempting silent refresh...")
-                    (activity as? MainActivity)?.refreshSpotifyToken()
                 }
                 else
                 {
-                    Log.e("SpotifyAPI", "Failed to fetch playlists: ${response.errorBody()?.string()}")
+                    Log.e("JamendoAPI", "Failed to fetch tracks: ${response.errorBody()?.string()}")
                 }
             }
 
-            override fun onFailure(call: Call<SpotifyPlaylistResponse>, t: Throwable) {
-                Log.e("SpotifyAPI", "Network error fetching playlists", t)
+            override fun onFailure(call: Call<JamendoResponse>, t: Throwable) {
+                Log.e("JamendoAPI", "Network error fetching tracks", t)
+            }
+        })
+    }
+
+    // Fetches the custom playlists from our backend
+    private fun fetchUserPlaylists() {
+        val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: return
+        val azureApi = RetrofitClient.getApiService(requireContext())
+
+        azureApi.getUserPlaylists(currentUserId).enqueue(object : Callback<List<PlaylistModel>> {
+            override fun onResponse(call: Call<List<PlaylistModel>>, response: Response<List<PlaylistModel>>) {
+                if (response.isSuccessful)
+                {
+                    val playlists = response.body() ?: emptyList()
+                    playlistAdapter.updateData(playlists)
+                }
+            }
+            override fun onFailure(call: Call<List<PlaylistModel>>, t: Throwable) {
+                Log.e("AzureAPI", "Failed to load home playlists", t)
             }
         })
     }

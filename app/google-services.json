@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "266169835058-a5ka5p47r8oub1mvlc8tj0toklpm4i1p.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.tuniq",
+            "certificate_hash": "c4dbd98733df7403b635d3ea42759b49714dd03e"
+          }
+        },
+        {
           "client_id": "266169835058-crr7tgeros0vmqusoaavkv5aui901c8j.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

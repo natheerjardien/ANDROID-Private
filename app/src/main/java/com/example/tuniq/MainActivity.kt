@@ -1,29 +1,49 @@
 package com.example.tuniq
 
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
+import android.view.View
+import android.widget.ImageView
+import android.widget.TextView
+import android.widget.ProgressBar
+import android.widget.ImageButton
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import com.google.android.material.bottomnavigation.BottomNavigationView
-import com.google.firebase.auth.FirebaseAuth
-import android.widget.Toast
-import com.example.tuniq.api.SpotifyApiService
-import com.example.tuniq.api.SpotifyTokenResponse
-import com.example.tuniq.auth.SpotifyAuthManager
-import com.example.tuniq.auth.TokenManager
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
-import com.example.tuniq.api.SpotifyProfileResponse
+import com.bumptech.glide.Glide
+import com.example.tuniq.media.AudioPlayerManager
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var auth: FirebaseAuth
-    private lateinit var tokenManager: TokenManager
+    private val handler = Handler(Looper.getMainLooper())
+    private lateinit var pbMiniPlayerProgress: ProgressBar
+    private lateinit var btnMiniPlayerPlayPause: ImageButton
+
+    // Timer to update the progress bar every 500ms
+    private val progressRunnable = object : Runnable {
+        override fun run() {
+            if (AudioPlayerManager.isPlaying())
+            {
+                val current = AudioPlayerManager.getCurrentPosition()
+                val total = AudioPlayerManager.getDuration()
+
+                if (total > 0)
+                {
+                    pbMiniPlayerProgress.max = total
+                    pbMiniPlayerProgress.progress = current
+                }
+                btnMiniPlayerPlayPause.setImageResource(android.R.drawable.ic_media_pause)
+            }
+            else
+            {
+                btnMiniPlayerPlayPause.setImageResource(android.R.drawable.ic_media_play)
+            }
+            handler.postDelayed(this, 500)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -31,12 +51,9 @@ class MainActivity : AppCompatActivity() {
 
         Log.d("MainActivity", "Main screen opened")
 
-        auth = FirebaseAuth.getInstance()
-        tokenManager = TokenManager(this)
-
-        handleIntent(intent)
-
         val bottomNav = findViewById<BottomNavigationView>(R.id.bottomNavigation)
+        pbMiniPlayerProgress = findViewById(R.id.pbMiniPlayerProgress)
+        btnMiniPlayerPlayPause = findViewById(R.id.btnMiniPlayerPlayPause)
 
         // Loads the home_dashboard.xml by default when MainActivity starts
         if (savedInstanceState == null) {
@@ -52,6 +69,23 @@ class MainActivity : AppCompatActivity() {
             }
             true
         }
+
+        btnMiniPlayerPlayPause.setOnClickListener {
+            if (AudioPlayerManager.isPlaying()) AudioPlayerManager.pause()
+            else AudioPlayerManager.resume()
+        }
+    }
+
+    // Forces the mini player to check for active music every time user returns to the dashboard
+    override fun onResume() {
+        super.onResume()
+        updateMiniPlayer()
+        handler.post(progressRunnable)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        handler.removeCallbacks(progressRunnable)
     }
 
     // Helper function to swap XML layouts in the fragmentContainer
@@ -61,144 +95,43 @@ class MainActivity : AppCompatActivity() {
             .commit()
     }
 
-    // Catch intent if activity is already running (singleTask mode)
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        handleIntent(intent)
-    }
+    /**
+     * Globally updates the mini player UI based on the active audio stream.
+     */
+    fun updateMiniPlayer() {
+        val track = AudioPlayerManager.currentTrack
+        val miniPlayerContainer = findViewById<View>(R.id.includeMiniPlayer)
 
-    private fun handleIntent(intent: Intent) {
-        val action = intent.action
-        val data: Uri? = intent.data
-
-        // Catches the tuniq://callback redirect from Spotify (Android Developers, 2026b).
-        if (Intent.ACTION_VIEW == action && data != null && data.scheme == "tuniq") {
-            val code = data.getQueryParameter("code")
-            if (code != null) {
-                Log.d("SpotifyAuth", "Authorization Code retrieved: $code")
-                exchangeCodeForToken(code)
-            }
-        }
-    }
-
-    // Executes a network call via Retrofit to exchange the auth code for an access token.
-    private fun exchangeCodeForToken(code: String) {
-        val retrofit = Retrofit.Builder()
-            .baseUrl("https://accounts.spotify.com/")
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-
-        val service = retrofit.create(SpotifyApiService::class.java)
-
-        val call = service.getAccessToken(
-            authorization = SpotifyAuthManager.getAuthHeader(),
-            grantType = "authorization_code",
-            code = code,
-            redirectUri = SpotifyAuthManager.REDIRECT_URI
-        )
-
-        call.enqueue(object : Callback<SpotifyTokenResponse> {
-            override fun onResponse(call: Call<SpotifyTokenResponse>, response: Response<SpotifyTokenResponse>) {
-                if (response.isSuccessful) {
-                    val accessToken = response.body()?.accessToken
-                    if (accessToken != null) {
-                        Log.d("SpotifyAuth", "SUCCESS! Access Token: $accessToken")
-
-                        val refreshToken = response.body()?.refreshToken
-                        tokenManager.saveTokens(accessToken, refreshToken)
-
-                        // Immediately fetch the user profile using the new token
-                        fetchSpotifyUserProfile(accessToken)
-
-                        Toast.makeText(this@MainActivity, "Spotify Connected!", Toast.LENGTH_LONG).show()
-                    }
-                } else {
-                    Log.e("SpotifyAuth", "Token exchange failed: ${response.errorBody()?.string()}")
-                }
-            }
-
-            override fun onFailure(call: Call<SpotifyTokenResponse>, t: Throwable) {
-                Log.e("SpotifyAuth", "Network error during token exchange", t)
-            }
-        })
-    }
-
-    // Refreshes the Spotify access token in the background
-    fun refreshSpotifyToken() {
-        val refreshToken = tokenManager.getRefreshToken()
-
-        if (refreshToken == null)
+        // Hides the miniplayer if the fullscreen SongFragment is active
+        val currentFragment = supportFragmentManager.findFragmentById(R.id.fragmentContainer)
+        if (currentFragment is SongFragment)
         {
-            Log.e("SpotifyAuth", "No refresh token found. User must log in manually.")
+            miniPlayerContainer.visibility = View.GONE
             return
         }
 
-        val retrofit = Retrofit.Builder()
-            .baseUrl("https://accounts.spotify.com/")
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
+        if (track != null)
+        {
+            miniPlayerContainer.visibility = View.VISIBLE
+            findViewById<TextView>(R.id.tvMiniPlayerTitle).text = track.name
+            findViewById<TextView>(R.id.tvMiniPlayerArtist).text = track.artistName
 
-        val service = retrofit.create(SpotifyApiService::class.java)
+            val ivArt = findViewById<ImageView>(R.id.ivMiniPlayerArt)
+            Glide.with(this).load(track.image).into(ivArt)
 
-        val call = service.refreshToken(
-            authorization = SpotifyAuthManager.getAuthHeader(),
-            grantType = "refresh_token",
-            refreshToken = refreshToken
-        )
-
-        call.enqueue(object : Callback<SpotifyTokenResponse> {
-            override fun onResponse(call: Call<SpotifyTokenResponse>, response: Response<SpotifyTokenResponse>) {
-                if (response.isSuccessful)
-                {
-                    val newAccessToken = response.body()?.accessToken
-                    val newRefreshToken = response.body()?.refreshToken
-
-                    if (newAccessToken != null)
-                    {
-                        Log.d("SpotifyAuth", "SUCCESS! Token silently refreshed.")
-                        // Save the new access token (and the new refresh token, if Spotify gave one)
-                        tokenManager.saveTokens(newAccessToken, newRefreshToken ?: refreshToken)
-                    }
-                } else {
-                    Log.e("SpotifyAuth", "Failed to refresh token: ${response.errorBody()?.string()}")
-                }
+            // Tapping the mini player also opens the SongFragment
+            miniPlayerContainer.setOnClickListener {
+                supportFragmentManager.beginTransaction()
+                    .replace(R.id.fragmentContainer, SongFragment())
+                    .addToBackStack(null)
+                    .commit()
+                miniPlayerContainer.visibility = View.GONE
             }
-
-            override fun onFailure(call: Call<SpotifyTokenResponse>, t: Throwable) {
-                Log.e("SpotifyAuth", "Network error during token refresh", t)
-            }
-        })
-    }
-
-    // Fetches the authenticated user's Spotify profile using the saved access token.
-    private fun fetchSpotifyUserProfile(token: String) {
-        val retrofit = Retrofit.Builder()
-            .baseUrl("https://api.spotify.com/")
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-
-        val service = retrofit.create(SpotifyApiService::class.java)
-
-        // Spotify requires the word "Bearer " before the token in the header
-        val call = service.getUserProfile("Bearer $token")
-
-        call.enqueue(object : Callback<SpotifyProfileResponse> {
-            override fun onResponse(call: Call<SpotifyProfileResponse>, response: Response<SpotifyProfileResponse>) {
-                if (response.isSuccessful) {
-                    val profile = response.body()
-                    if (profile != null) {
-                        Log.d("SpotifyProfile", "Welcome, ${profile.displayName}! (Email: ${profile.email})")
-                        Toast.makeText(this@MainActivity, "Logged into Spotify as ${profile.displayName}", Toast.LENGTH_LONG).show()
-                    }
-                } else {
-                    Log.e("SpotifyProfile", "Failed to fetch profile: ${response.errorBody()?.string()}")
-                }
-            }
-
-            override fun onFailure(call: Call<SpotifyProfileResponse>, t: Throwable) {
-                Log.e("SpotifyProfile", "Network error fetching profile", t)
-            }
-        })
+        }
+        else
+        {
+            miniPlayerContainer.visibility = View.GONE
+        }
     }
 }
 

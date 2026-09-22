@@ -1,6 +1,7 @@
 package com.example.tuniq
 
 import android.os.Bundle
+import android.util.Log
 import android.util.Patterns
 import android.widget.Button
 import android.widget.ImageButton
@@ -10,91 +11,115 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.example.tuniq.api.RetrofitClient
+import com.example.tuniq.api.TuniqApiService
+import com.example.tuniq.api.UserModel
 import com.google.android.material.textfield.TextInputEditText
+import com.google.firebase.auth.FirebaseAuth
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 
 class AccountActivity : AppCompatActivity() {
+
+    private lateinit var auth: FirebaseAuth
+    private lateinit var azureApi: TuniqApiService
+
+    private lateinit var editEmail: TextInputEditText
+    private lateinit var editPassword: TextInputEditText
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         setContentView(R.layout.activity_account)
 
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.account)) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
-        }
+        auth = FirebaseAuth.getInstance()
+        azureApi = RetrofitClient.getApiService(this)
 
-        // Bind Buttons
+        editEmail = findViewById(R.id.editEmail)
+        editPassword = findViewById(R.id.editPassword)
+
         val btnBack = findViewById<ImageButton>(R.id.btnBack)
-        val btnChangeUsername = findViewById<TextView>(R.id.btnChangeUsername)
         val btnUpdateEmail = findViewById<TextView>(R.id.btnUpdateEmail)
         val btnChangePassword = findViewById<TextView>(R.id.btnChangePassword)
-        val btnDeleteAccount = findViewById<Button>(R.id.btnDeleteAccount)
 
-        // Bind Input Fields
-        val editUsername = findViewById<TextInputEditText>(R.id.editUsername)
-        val editEmail = findViewById<TextInputEditText>(R.id.editEmail)
-        val editPassword = findViewById<TextInputEditText>(R.id.editPassword)
+        loadCurrentUserData()
 
-        // Handle Navigation
         btnBack.setOnClickListener {
             finish()
         }
 
-        // Handle Submissions
-        btnChangeUsername.setOnClickListener {
-            val newUsername = editUsername.text.toString().trim()
-            if (newUsername.isNotEmpty()) {
-
-                // -- Send new username to ASP.NET Core API --
-
-                Toast.makeText(this, "Updating username to: $newUsername", Toast.LENGTH_SHORT).show()
-                editUsername.text?.clear() // Clear field after saving
-            } else {
-                Toast.makeText(this, "Username cannot be empty", Toast.LENGTH_SHORT).show()
-            }
-        }
-
+        // Update Email
         btnUpdateEmail.setOnClickListener {
             val newEmail = editEmail.text.toString().trim()
+            val currentUser = auth.currentUser
 
-            if (newEmail.isEmpty()) {
-                editEmail.error = "Email cannot be empty"
-                editEmail.requestFocus()
-            } else if (!Patterns.EMAIL_ADDRESS.matcher(newEmail).matches()) {
-                editEmail.error = "Please enter a valid email address"
-                editEmail.requestFocus()
-            } else {
+            if (newEmail.isEmpty() || !Patterns.EMAIL_ADDRESS.matcher(newEmail).matches()) {
+                editEmail.error = "Enter a valid email address"
+                return@setOnClickListener
+            }
 
-                // -- Send new email to ASP.NET Core API --
+            if (currentUser != null) {
+                currentUser.verifyBeforeUpdateEmail(newEmail).addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        Log.d("AccountActivity", "Firebase email updated successfully")
 
-                Toast.makeText(this, "Updating email to: $newEmail", Toast.LENGTH_SHORT).show()
-                editEmail.error = null // Clear any previous errors
-                editEmail.text?.clear()
+                        // Sync updated email to Azure SQL Database
+                        val userId = currentUser.uid
+                        val name = currentUser.displayName ?: "User"
+                        val updatedUser = UserModel(userId = userId, name = name, email = newEmail)
+
+                        azureApi.createUser(updatedUser).enqueue(object : Callback<UserModel> {
+                            override fun onResponse(call: Call<UserModel>, response: Response<UserModel>) {
+                                if (response.isSuccessful) {
+                                    Toast.makeText(this@AccountActivity, "Email updated successfully", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(this@AccountActivity, "Email updated in Firebase, but backend sync failed", Toast.LENGTH_LONG).show()
+                                }
+                            }
+
+                            override fun onFailure(call: Call<UserModel>, t: Throwable) {
+                                Toast.makeText(this@AccountActivity, "Network error during backend sync", Toast.LENGTH_SHORT).show()
+                            }
+                        })
+                    } else {
+                        Toast.makeText(this@AccountActivity, "Failed to update email", Toast.LENGTH_LONG).show()
+                    }
+                }
             }
         }
 
+        // Update Password
         btnChangePassword.setOnClickListener {
-            val newPassword = editPassword.text.toString()
+            val newPassword = editPassword.text.toString().trim()
+            val currentUser = auth.currentUser
 
-            if (newPassword.isEmpty()) {
-                editPassword.error = "Password cannot be empty"
-                editPassword.requestFocus()
-            } else if (newPassword.length < 6) {
-                editPassword.error = "Password must be at least 6 characters long"
-                editPassword.requestFocus()
-            } else {
+            if (newPassword.length < 8) {
+                editPassword.error = "Password must be at least 8 characters"
+                return@setOnClickListener
+            }
 
-                // -- Send new password to ASP.NET Core API --
-
-                Toast.makeText(this, "Password updated", Toast.LENGTH_SHORT).show()
-                editPassword.error = null
-                editPassword.text?.clear()
+            if (currentUser != null) {
+                currentUser.updatePassword(newPassword).addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        Log.d("AccountActivity", "Password updated successfully")
+                        Toast.makeText(this@AccountActivity, "Password updated successfully", Toast.LENGTH_SHORT).show()
+                        editPassword.text?.clear()
+                    } else {
+                        Toast.makeText(this@AccountActivity, "Failed to update password", Toast.LENGTH_LONG).show()
+                    }
+                }
             }
         }
+    }
 
-        btnDeleteAccount.setOnClickListener {
-            Toast.makeText(this, "Warning: Delete Account initiated", Toast.LENGTH_LONG).show()
+    private fun loadCurrentUserData() {
+        val currentUser = auth.currentUser
+        if (currentUser != null) {
+            editEmail.setText(currentUser.email ?: "")
+            // Passwords cannot be retrieved securely from Firebase Auth for privacy reasons,
+            // so we leave the password field blank or ask the user to input a new one.
+            editPassword.setText("")
+            editPassword.hint = "Enter new password to change"
         }
     }
 }

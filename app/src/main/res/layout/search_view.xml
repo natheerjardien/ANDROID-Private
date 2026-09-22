@@ -28,10 +28,13 @@
         android:drawableStart="@android:drawable/ic_menu_search"
         android:drawablePadding="12dp"
         android:drawableTint="#B3B3B3"
-        android:hint="Artists, songs, or podcasts"
+        android:hint="Lofi, ambient, hiphop"
         android:paddingHorizontal="16dp"
         android:textColor="#FFFFFF"
-        android:textColorHint="#B3B3B3" />
+        android:textColorHint="#B3B3B3"
+        android:inputType="text"
+        android:imeOptions="actionSearch"
+        android:maxLines="1" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvSearchResults"

@@ -1,6 +1,0 @@
-@TuniqBackend_HostAddress = http://localhost:5241
-
-GET {{TuniqBackend_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###
